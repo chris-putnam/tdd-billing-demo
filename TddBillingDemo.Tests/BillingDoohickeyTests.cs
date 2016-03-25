@@ -17,7 +17,7 @@ namespace TddBillingDemo.Tests
 
             var billingProcessor = TestableBillingProcessor.Create(customer);
 
-            billingProcessor.ProcessMonth(2001, 8);
+            billingProcessor.ProcessMonth(2011, 8);
 
             billingProcessor.Charger.Verify(c => c.ChargeCustomer(customer), Times.Never());
         }
@@ -30,15 +30,36 @@ namespace TddBillingDemo.Tests
 
             var billingProcessor = TestableBillingProcessor.Create(customer);
 
-            billingProcessor.ProcessMonth(2001, 8);
+            billingProcessor.ProcessMonth(2011, 8);
 
             billingProcessor.Charger.Verify(c => c.ChargeCustomer(customer), Times.Once());
+        }
+
+        [Fact]
+        public void CustomersWithSubscriptionThatIsCurrentDoesNotGetCharged()
+        {
+            var customer = new Customer { Subscribed = true, PaidThroughYear = 2011, PaidThroughMonth = 8};
+
+            var billingProcessor = TestableBillingProcessor.Create(customer);
+
+            billingProcessor.Charger.Verify(c => c.ChargeCustomer(customer), Times.Never());
+        }
+
+        [Fact]
+        public void CustomersWithSubscriptionThatIsPaidThroughNextYearDoesNotGetCharged()
+        {
+            var customer = new Customer { Subscribed = true, PaidThroughYear = 2012, PaidThroughMonth = 8 };
+
+            var billingProcessor = TestableBillingProcessor.Create(customer);
+
+            billingProcessor.Charger.Verify(c => c.ChargeCustomer(customer), Times.Never());
         }
 
         //Monthly billing
         //Grace period for missed payments ("dunning" status)
         //Not all customers are necessarily subscribers
         //Idle customers should be automatically unsubscribed
+        //What about customers who sign up today?
 
     }
 
@@ -78,7 +99,9 @@ namespace TddBillingDemo.Tests
         internal void ProcessMonth(int year, int month)
         {
             var customer = _repo.Customers.Single();
-            if (customer.Subscribed)
+            if (customer.Subscribed && 
+                (customer.PaidThroughYear <= year &&
+                customer.PaidThroughMonth < month))
             {
                 _charger.ChargeCustomer(customer);
             }
@@ -97,6 +120,8 @@ namespace TddBillingDemo.Tests
 
     public class Customer
     {
+        public int PaidThroughMonth { get; set; }
+        public int PaidThroughYear { get; set; }
         public bool Subscribed { get; set; }
     }
 }
