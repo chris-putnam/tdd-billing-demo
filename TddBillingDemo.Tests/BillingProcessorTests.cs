@@ -8,7 +8,7 @@ using Xunit;
 
 namespace TddBillingDemo.Tests
 {
-    public class BillingDoohickeyTests
+    public class BillingProcessorTests
     {
         [Fact]
         public void CustomerWhoDoesNotHaveSubscriptionDoesNotGetCharged()
