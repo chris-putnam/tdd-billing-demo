@@ -13,33 +13,63 @@ namespace TddBillingDemo.Tests
         [Fact]
         public void CustomerWhoDoesNotHaveSubscriptionDoesNotGetCharged()
         {
-            // just start writing your test without thinking too hard about the implementation
+            var customer = new Customer(); 
 
-            // we need a source for customers
-            // we need a service to charge customers
+            var billingProcessor = TestableBillingProcessor.Create(customer);
 
-            var repo = new Mock<ICustomerRepository>();
-            var charger = new Mock<ICreditCardCharger>();
-            var customer = new Customer(); // what does it mean to not have a subscription
+            billingProcessor.ProcessMonth(2001, 8);
 
-            BillingDoohickey thing = new BillingDoohickey(repo.Object, charger.Object);
-            thing.ProcessMonth(2001, 8);
+            billingProcessor.Charger.Verify(c => c.ChargeCustomer(customer), Times.Never());
+        }
 
-            charger.Verify(c => c.ChargeCustomer(customer), Times.Never());
+        [Fact]
+        public void CustomerWithSubscriptionThatIsExpiredGetsCharged()
+        {
+            
+            var customer = new Customer {Subscribed = true};
+
+            var billingProcessor = TestableBillingProcessor.Create(customer);
+
+            billingProcessor.ProcessMonth(2001, 8);
+
+            billingProcessor.Charger.Verify(c => c.ChargeCustomer(customer), Times.Once());
         }
 
         //Monthly billing
         //Grace period for missed payments ("dunning" status)
         //Not all customers are necessarily subscribers
         //Idle customers should be automatically unsubscribed
+
     }
 
-    public class BillingDoohickey
+    public class TestableBillingProcessor : BillingProcessor
+    {
+        public Mock<ICreditCardCharger> Charger;
+        public Mock<ICustomerRepository> Repository;
+
+        public TestableBillingProcessor(Mock<ICustomerRepository> repo, Mock<ICreditCardCharger> charger) : base(repo.Object, charger.Object)
+        {
+            Repository = repo;
+            Charger = charger;
+        }
+
+        // factory function for creating instances of the testable billing processor
+        public static TestableBillingProcessor Create(params Customer[] customers)
+        {
+            Mock<ICustomerRepository> repo = new Mock<ICustomerRepository>();
+            repo.Setup(r => r.Customers)
+                .Returns(customers);
+
+            return new TestableBillingProcessor(repo, new Mock<ICreditCardCharger>());
+        }
+    }
+
+    public class BillingProcessor
     {
         private ICreditCardCharger _charger;
         private ICustomerRepository _repo;
 
-        public BillingDoohickey(ICustomerRepository repo, ICreditCardCharger charger)
+        public BillingProcessor(ICustomerRepository repo, ICreditCardCharger charger)
         {
             _repo = repo;
             _charger = charger;
@@ -47,6 +77,11 @@ namespace TddBillingDemo.Tests
 
         internal void ProcessMonth(int year, int month)
         {
+            var customer = _repo.Customers.Single();
+            if (customer.Subscribed)
+            {
+                _charger.ChargeCustomer(customer);
+            }
         }
     }
 
@@ -57,10 +92,11 @@ namespace TddBillingDemo.Tests
 
     public interface ICustomerRepository
     {
+        IEnumerable<Customer> Customers { get; set; }
     }
 
     public class Customer
     {
-        
+        public bool Subscribed { get; set; }
     }
 }
