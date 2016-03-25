@@ -8,7 +8,7 @@ using Xunit;
 
 namespace TddBillingDemo.Tests
 {
-    class BillingDoohickeyTests
+    public class BillingDoohickeyTests
     {
         [Fact]
         public void CustomerWhoDoesNotHaveSubscriptionDoesNotGetCharged()
@@ -20,13 +20,14 @@ namespace TddBillingDemo.Tests
 
             var repo = new Mock<ICustomerRepository>();
             var charger = new Mock<ICreditCardCharger>();
-            var customer = new Customer();
+            var customer = new Customer(); // what does it mean to not have a subscription
 
             BillingDoohickey thing = new BillingDoohickey(repo.Object, charger.Object);
             thing.ProcessMonth(2001, 8);
 
             charger.Verify(c => c.ChargeCustomer(customer), Times.Never());
         }
+
         //Monthly billing
         //Grace period for missed payments ("dunning" status)
         //Not all customers are necessarily subscribers
@@ -46,7 +47,6 @@ namespace TddBillingDemo.Tests
 
         internal void ProcessMonth(int year, int month)
         {
-            throw new NotImplementedException();
         }
     }
 
