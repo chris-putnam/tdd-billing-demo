@@ -42,6 +42,8 @@ namespace TddBillingDemo.Tests
 
             var billingProcessor = TestableBillingProcessor.Create(customer);
 
+            billingProcessor.ProcessMonth(2011, 8);
+
             billingProcessor.Charger.Verify(c => c.ChargeCustomer(customer), Times.Never());
         }
 
@@ -52,7 +54,41 @@ namespace TddBillingDemo.Tests
 
             var billingProcessor = TestableBillingProcessor.Create(customer);
 
+            billingProcessor.ProcessMonth(2011, 8);
+
             billingProcessor.Charger.Verify(c => c.ChargeCustomer(customer), Times.Never());
+        }
+
+        [Fact]
+        public void CustomerWhoIsSubscribedAndDueToPayButFailsOnceIsStillSubscribed()
+        {
+            var customer = new Customer { Subscribed = true, PaidThroughYear = 2012, PaidThroughMonth = 8 };
+
+            var billingProcessor = TestableBillingProcessor.Create(customer);
+
+            billingProcessor.Charger.Setup(c => c.ChargeCustomer(It.IsAny<Customer>())).Returns(false);
+
+            billingProcessor.ProcessMonth(2011, 8);
+
+            Assert.True(customer.Subscribed);
+        }
+
+        [Fact]
+        public void CustomerWhoIsSubscribedAndDueToPayButFailsThreeTimesIsNoLongerSubscribed()
+        {
+            var customer = new Customer { Subscribed = true };
+
+            var billingProcessor = TestableBillingProcessor.Create(customer);
+
+            billingProcessor.Charger.Setup(c => c.ChargeCustomer(It.IsAny<Customer>())).Returns(false);
+
+
+            for (int i = 0; i < BillingProcessor.MAX_FAILURES; i++)
+            {
+                billingProcessor.ProcessMonth(2011, 8);
+            }
+
+            Assert.False(customer.Subscribed);
         }
 
         //Monthly billing
@@ -87,6 +123,7 @@ namespace TddBillingDemo.Tests
 
     public class BillingProcessor
     {
+        public const int MAX_FAILURES = 3;
         private ICreditCardCharger _charger;
         private ICustomerRepository _repo;
 
@@ -103,14 +140,21 @@ namespace TddBillingDemo.Tests
                 (customer.PaidThroughYear <= year &&
                 customer.PaidThroughMonth < month))
             {
-                _charger.ChargeCustomer(customer);
+                bool charged = _charger.ChargeCustomer(customer);
+                if (!charged)
+                {
+                    if (++customer.PaymentFailures >= MAX_FAILURES)
+                    {
+                        customer.Subscribed = false;
+                    }
+                }
             }
         }
     }
 
     public interface ICreditCardCharger
     {
-        void ChargeCustomer(Customer customer);
+        bool ChargeCustomer(Customer customer);
     }
 
     public interface ICustomerRepository
@@ -120,8 +164,10 @@ namespace TddBillingDemo.Tests
 
     public class Customer
     {
+        // Is this really customer data or subscription data?
         public int PaidThroughMonth { get; set; }
         public int PaidThroughYear { get; set; }
+        public int PaymentFailures { get; set; }
         public bool Subscribed { get; set; }
     }
 }
