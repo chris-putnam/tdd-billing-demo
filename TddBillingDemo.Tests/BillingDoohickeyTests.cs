@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Moq;
 using Xunit;
 
 namespace TddBillingDemo.Tests
@@ -13,6 +14,13 @@ namespace TddBillingDemo.Tests
         public void Monkey()
         {
             // just start writing your test without thinking too hard about the implementation
+
+            // we need a source for customers
+            // we need a service to charge customers
+
+            ICustomerRepository repo = new Mock<ICustomerRepository>();
+            ICreditCardCharger charger = new Mock<ICreditCardCharger>();
+
             BillingDoohickey thing = new BillingDoohickey();
             thing.ProcessMonth(2001, 8);
         }
