@@ -230,8 +230,6 @@ namespace TddBillingDemo.Tests
 
     public class Customer
     {
-        /*public int PaymentFailures { get; set; }
-        public bool Subscribed { get; set; }*/
         public Subscription Subscription { get; internal set; }
     }
 }
